@@ -1,13 +1,13 @@
-from docx import Document as Doc
 import sys
 import json
 import argparse
 import re
-from lxml import etree
 import xml.dom.minidom
+from lxml import etree
 from pathlib import Path
 from uuid import uuid4
 
+from docx import Document as Doc
 from docx.document import Document
 from docx.oxml.table import CT_Tbl
 from docx.oxml.section import CT_SectPr
@@ -116,12 +116,58 @@ def baseline_control(control, baseline):
         if control.attrib[classification]:
             baseline[classification]['controls'] += [str(control.attrib['number'])]
 
+def add_text_and_links(para, node, rels, uuids):
+    '''
+    The docx package text properties throw away hyperlinks and just concatenate
+    the <w:t> elements together. We want to keep the interspersed <w:hyperlink>
+    elements, so have to manage the runs ourselves.
+
+    etree builds the paragraph like:
+    <p>
+        node text
+        <a href="http://some.link">link display text</a>
+            tail text
+        <a href="http://another.link">following display text</>
+            tail text
+    </p>
+    '''
+    node.text = ''
+    add_to_tail = False     # for text following a hyperlink
+    for child in para._p:
+        text = ''           # initialize in case there's no text
+        if isinstance(child, CT_PPr):
+            pass
+        elif isinstance(child, CT_R):
+            # concat the text fragments word creates together
+            text = f'{child.text}'
+        elif child.tag == HYPERLINK:
+            if child.get(ID) is None:
+                # Word produces the occasional empty hyperlink
+                continue
+            # each hyperlink is a child of the paragraph
+            href = etree.SubElement(node, 'a')
+            add_to_tail = True
+            linktext = ''
+            for gchild in child:
+                linktext += f'{gchild.text}'
+            href.text = linktext
+            href.tail = ''
+            if args.oscal:
+                href.attrib['href'] = f'#{uuids[child.get(ID)]}'
+            else:
+                href.attrib['href'] = rels[child.get(ID)].target_ref
+            id_list[rels[child.get(ID)].target_ref][1].append(linktext)
+        if add_to_tail:
+            href.tail += text
+        else:
+            node.text += text
+
+
 ### MAIN ###
 parser = argparse.ArgumentParser(description='Parse an ISM docx file into XML')
 parser.add_argument('-i', '--ism', dest='infile', help='path to the ISM docx file', required=True)
-parser.add_argument('-o', '--xmlout', dest='xmloutfile', default='output.xml', help='path to the XML output file')
-parser.add_argument('-c', '--catalog', dest='catalogfile', default='output.json', help='path to the JSON catalog file')
-parser.add_argument('-b', '--oscal', dest='oscal', action='store_true', help='write out links as back-matter')
+parser.add_argument('-x', '--xmlfile', dest='xmloutfile', default='output.xml', help='path to the XML output file')
+parser.add_argument('-o', '--oscal', dest='oscal', action='store_true', help='write out links as back-matter')
 parser.add_argument('-p', '--pretty', dest='pretty', action='store_true', help='pretty print the output')
 args = parser.parse_args()
 
@@ -140,9 +186,9 @@ try:
     id_list = {}
     for rel in rels:
         if rels[rel]._target not in id_list:
-            id_list[rels[rel]._target] = str(uuid4())
+            id_list[rels[rel]._target] = (str(uuid4()), [])
         if rels[rel]._is_external:
-            uuids[rel] = id_list[rels[rel]._target]
+            uuids[rel] = id_list[rels[rel]._target][0]
 
 except Exception as exc:
     print('{} is not a valid docx file: {}'.format(args.infile, exc))
@@ -161,11 +207,6 @@ version = etree.SubElement(meta, 'version')
 version.text = doc.core_properties.modified.strftime('%Y-%m-%d')
 acsc_version = etree.SubElement(meta, 'acsc_version')
 acsc_version.text = doc.core_properties.modified.strftime('%B %Y')
-
-baselines = {'official':{'controls':[]},
-             'protected':{'controls':[]},
-             'secret':{'controls':[]},
-             'top_secret':{'controls':[]}}
 
 for para in iter_block_items(doc):
     if para.style.name == 'Heading 1':
@@ -190,75 +231,41 @@ for para in iter_block_items(doc):
         add_table(para, node)
     elif para.style.name.startswith('Bullets'):
         bullet = etree.SubElement(node, 'bullet')
-        bullet.text = para.text
+        add_text_and_links(para, bullet, rels, uuids)
     elif para.text.startswith('Security Control:'):
         if node.tag == 'control':
             node = node.find('..')
         control = etree.SubElement(node, 'control')
-        control.text = para.text.strip()
+        control.text = para.text.rstrip()
         add_attribs(control)
         control.text = ''       # parsed into attribs
-        baseline_control(control, baselines)
         node = control
     elif node is not None:
-        '''
-        The docx package text properties throw away hyperlinks and just concatenate
-        the <w:t> elements together. We want to keep the interspersed <w:hyperlink>
-        elements, so have to manage the runs ourselves.
-
-        etree builds the paragraph like:
-        <p>
-            Some text
-            <a href="http://some.link">link display text</a>
-            tail text
-            <a href="http://another.link">following display text</>
-            tail text
-        </p>
-        '''
         content = etree.SubElement(node, 'p')
-        content.text = ''
-        add_to_tail = False     # for text following a hyperlink
-        for child in para._p:
-            text = ''           # initialize in case there's no text
-            if isinstance(child, CT_PPr):
-                pass
-            elif isinstance(child, CT_R):
-                # concat the text fragments word creates together
-                text = f'{child.text}'
-            elif child.tag == HYPERLINK:
-                # each hyperlink is a child of the paragraph
-                href = etree.SubElement(content, 'a')
-                linktext = ''
-                for gchild in child:
-                    linktext += f'{gchild.text}'
-                href.text = linktext
-                href.tail = ''
-                if args.oscal:
-                    href.attrib['href'] = f'#{uuids[child.get(ID)]}'
-                else:
-                    href.attrib['href'] = rels[child.get(ID)].target_ref
-                add_to_tail = True
-            if add_to_tail:
-                href.tail += text
-            else:
-                content.text += text
+        add_text_and_links(para, content, rels, uuids)
 
 if args.oscal:
     '''
     Add in the back-matter
     '''
     backmatter = etree.SubElement(ism, 'back-matter')
+    sorted_dict = {k: v for k, v in sorted(id_list.items(), key=lambda item: str(item[1][1]).lower())}
 
-    for key in id_list:
+    for key in sorted_dict:
         if isinstance(key, str):    # don't need the toc/internal links
             resource = etree.SubElement(backmatter, 'resource')
-            resource.attrib['uuid'] = id_list[key]
+            resource.attrib['uuid'] = id_list[key][0]
+            title = etree.SubElement(resource, 'title')
+            try:
+                title.text = id_list[key][1][0]
+            except:
+                title.text = ''
             rlink = etree.SubElement(resource, 'rlink')
             rlink.attrib['href'] = key
 
 
 '''
-Finally, write out the output files
+Finally, write out the output file
 '''
 with open(args.xmloutfile, 'w') as fh:
     if args.pretty:
@@ -266,7 +273,6 @@ with open(args.xmloutfile, 'w') as fh:
         fh.write(xml.toprettyxml())
     else:
         fh.write(etree.tostring(root, encoding=str))
-
-
-with open(args.catalogfile, 'w') as fh:
-    json.dump(baselines, fh)
+acsc_version = doc.core_properties.modified.strftime('%B %Y')
+filename = f'Australian Government Information Security Manual {acsc_version}.xml'
+print(filename)

@@ -8,8 +8,9 @@
   <xsl:variable name="prefix" select="'C'" />
   <!-- control class names -->
   <xsl:variable name="control_class" select="'ISM'" />
-  <xsl:variable name="control_test_class" select="'TEST'" />
+  <xsl:variable name="control_test_class" select="'control'" />
   <xsl:variable name="information_class" select="'Information'" />
+  <xsl:param name="uuid" />
 
   <!-- Identity Template -->
   <xsl:template match="@*|node()">
@@ -25,13 +26,6 @@
     </title>
   </xsl:template>
 
-  <!-- paragraphs - clean up stray linefeeds -->
-  <xsl:template match="p">
-    <xsl:element name="{local-name()}">
-      <xsl:value-of select="normalize-space(.)" />
-    </xsl:element>
-  </xsl:template>
-
   <!-- remove wrapping elements -->
   <xsl:template match="root">
     <xsl:apply-templates />
@@ -39,7 +33,8 @@
 
   <!-- OSCAL namespace/uuid support -->
   <xsl:template match="ism">
-    <catalog xmlns="http://csrc.nist.gov/ns/oscal/1.0" uuid="{metadata/@uuid}" xsi:schemaLocation="http://csrc.nist.gov/ns/oscal/1.0 file://oscal-v1.0.xsd">
+      <!-- <catalog xmlns="http://csrc.nist.gov/ns/oscal/1.0" uuid="{metadata/@uuid}" xsi:schemaLocation="http://csrc.nist.gov/ns/oscal/1.0 file://oscal-v1.0.xsd"> -->
+    <catalog xmlns="http://csrc.nist.gov/ns/oscal/1.0" uuid="{$uuid}" xsi:schemaLocation="http://csrc.nist.gov/ns/oscal/1.0 file://oscal-v1.0.xsd">
       <xsl:apply-templates />
     </catalog>
   </xsl:template>

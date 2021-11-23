@@ -73,10 +73,5 @@ target/
 .vscode/
 .idea/
 
-
-#outputs
-*.xml
-*.json
-
 #saxon
 *.jar
