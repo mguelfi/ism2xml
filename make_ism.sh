@@ -53,6 +53,6 @@ do
 done  
 
 echo Making HTML...
-java -jar ${SAXON} -s:"${TEMP}" -xsl:oscal_catalog_html.xsl -o:${o}/ISM_Catalog.html
+java -jar ${SAXON} -s:"${o}/${CATALOG_NAME}" -xsl:oscal_catalog_html.xsl -o:${o}/ISM_Catalog.html
 
 rm "${TEMP}"
