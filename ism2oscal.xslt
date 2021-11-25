@@ -151,7 +151,7 @@
       <prop name="number" value="{@number}" />
       <prop name="revision" value="{@revision}" />
       <prop name="update" value="{@update}" />
-      <part name="statement" id="{$prefix}{$part_id}_stm.{$control}">
+      <part name="statement" id="{$prefix}{$part_id}.{$control}_stm">
         <xsl:apply-templates select="p|bullet|table" />
       </part>
     </control>

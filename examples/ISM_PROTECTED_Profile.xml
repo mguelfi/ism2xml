@@ -1,7 +1,7 @@
 <profile xmlns="http://csrc.nist.gov/ns/oscal/1.0"
          xmlns:fn="http://www.w3.org/2005/xpath-functions"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         uuid="bd7a83e0-d707-4e46-ad54-caf9c2ab2848"
+         uuid="fdb13288-65fb-47cb-9cba-d42295c6327c"
          xsi:schemaLocation="http://csrc.nist.gov/ns/oscal/1.0 file://oscal-v1.0.xsd">
    <metadata>
       <title>ISM PROTECTED Baseline</title>
@@ -10,7 +10,7 @@
       <version>2021-09-28</version>
       <oscal-version>1.0.0</oscal-version>
    </metadata>
-   <import href="#e4d2d0cd-a9dd-4590-9647-a95124294d6d">
+   <import href="#8ff538b4-4d50-4e5d-bd2f-369a7fd73e1a">
       <include-controls>
          <with-id>C2-1</with-id>
          <with-id>C2-1.1</with-id>
@@ -1919,7 +1919,7 @@
       </include-controls>
    </import>
    <back-matter>
-      <resource uuid="e4d2d0cd-a9dd-4590-9647-a95124294d6d">
+      <resource uuid="8ff538b4-4d50-4e5d-bd2f-369a7fd73e1a">
          <title>Australian Information Security Manual</title>
          <prop name="version" value="September 2021"/>
          <rlink media-type="application/xml"
