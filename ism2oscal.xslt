@@ -57,8 +57,13 @@
     </metadata>
   </xsl:template>
 
+  <!-- resource titles -->
+  <xsl:template match="title[ancestor::resource]" >
+    <xsl:copy-of select="." />
+  </xsl:template>
+
   <!-- remove notes and empty TOC -->
-  <xsl:template match="title[not(.//control)]" />
+  <xsl:template match="title[not(.//control)][not(ancestor::resource)]" />
 
   <!-- chapters -->
   <xsl:template match="title">
